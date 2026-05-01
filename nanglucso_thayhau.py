@@ -13,8 +13,8 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🤖 TRỢ LÝ AI: TÍCH HỢP NĂNG LỰC SỐ (BẢN FIX LỖI CAO CẤP)")
-st.info("💡 Đã khắc phục triệt để lỗi biến số. AI sẽ quét sâu toàn bộ giáo án và gán nội dung chuẩn xác!")
+st.title("🤖 TRỢ LÝ AI: TÍCH HỢP NĂNG LỰC SỐ (BẢN FIX VỊ TRÍ & ĐỊNH DẠNG)")
+st.info("💡 Đã sửa lỗi đảo ngược dòng. Định dạng chuẩn xác: [Mã NLS]: [Nội dung] theo Phụ lục 3.")
 
 col1, col2 = st.columns(2)
 with col1:
@@ -27,14 +27,14 @@ with col2:
 
 if st.button("🚀 BẮT ĐẦU TÍCH HỢP"):
     if file_giaolan:
-        with st.spinner("AI đang quét toàn bộ văn bản và bảng biểu..."):
+        with st.spinner("AI đang quét và sắp xếp đúng vị trí..."):
             doc = Document(file_giaolan)
             
             # Đặt tên file: Tên cũ + NLS
             original_name = os.path.splitext(file_giaolan.name)[0]
             new_filename = f"{original_name} NLS.docx"
 
-            # Dữ liệu NLS
+            # Dữ liệu NLS (Đã chuẩn hóa để ráp đúng định dạng của anh)
             nls_list = [
                 {"ma": "5.1.TC1a", "nd": "Hướng dẫn HS thực hành thao tác thiết bị, bật/tắt đúng quy trình."},
                 {"ma": "5.2.TC1a", "nd": "Yêu cầu HS xác định nhu cầu thực tế cần giải quyết."},
@@ -59,34 +59,37 @@ if st.button("🚀 BẮT ĐẦU TÍCH HỢP"):
                         insert_pos = j
                         break
                 
-                # Chèn tiêu đề NLS
-                p_head = doc.paragraphs[insert_pos].insert_paragraph_before(f"{num_nls} Năng lực số:")
+                # SỬA LỖI ĐẢO NGƯỢC: Dùng ref_p để đóng đinh vị trí chèn
+                ref_p = doc.paragraphs[insert_pos]
+                
+                # 1. Chèn Tiêu đề TRƯỚC
+                p_head = ref_p.insert_paragraph_before(f"{num_nls} Năng lực số:")
                 p_head.runs[0].bold = True
-                # Chèn các nội dung NLS
+                
+                # 2. Chèn các mục NLS theo đúng thứ tự (Định dạng: Mã: Nội dung)
                 for item in nls_list:
-                    p_item = doc.paragraphs[insert_pos].insert_paragraph_before(f"- {item['nd']} ({item['ma']}).")
+                    # In nghiêng phần nội dung để đồng bộ giáo án
+                    p_item = ref_p.insert_paragraph_before(f"- {item['ma']}: {item['nd']}")
                     p_item.runs[0].italic = True
 
             # --- BƯỚC 2: RÀ SOÁT TÌM "CHUYỂN GIAO NHIỆM VỤ" ---
-            
-            # 🌟 GIẢI PHÁP VƯỢT LỖI: Dùng Dictionary để lưu trữ bộ đếm
             tracker = {"idx": 0, "count": 0}
 
             def inject_nls(para):
                 txt = para.text.lower()
                 
-                # Bắt đúng từ khóa
                 if "chuyển giao nhiệm vụ" in txt or "giao nhiệm vụ:" in txt:
                     if len(nls_list) > 0:
                         nls = nls_list[tracker["idx"] % len(nls_list)]
                         
-                        # Chèn thêm 1 dòng mới
-                        run = para.add_run(f"\n   => Tích hợp NLS: {nls['nd']} ({nls['ma']})")
+                        # Chèn thêm 1 dòng mới (Định dạng: Mã: Nội dung)
+                        run = para.add_run(f"\n   => Tích hợp NLS: {nls['ma']}: {nls['nd']}")
+                        
+                        # Ép In Đậm, In Nghiêng, Gạch Chân
                         run.italic = True
                         run.underline = True
                         run.bold = True 
                         
-                        # Tăng bộ đếm
                         tracker["idx"] += 1
                         tracker["count"] += 1
 
@@ -107,9 +110,9 @@ if st.button("🚀 BẮT ĐẦU TÍCH HỢP"):
             
             # THÔNG BÁO KẾT QUẢ RÕ RÀNG
             if tracker["count"] > 0:
-                st.success(f"✅ TUYỆT VỜI! Đã tìm thấy và chèn Năng lực số vào {tracker['count']} vị trí 'Chuyển giao nhiệm vụ'.")
+                st.success(f"✅ TUYỆT VỜI! Đã chèn {tracker['count']} Năng lực số đúng thứ tự và định dạng.")
             else:
-                st.warning("⚠️ Quét xong nhưng không thấy chữ 'Chuyển giao nhiệm vụ'. Anh Hậu kiểm tra lại từ khóa trong giáo án nhé.")
+                st.warning("⚠️ Quét xong nhưng không thấy chữ 'Chuyển giao nhiệm vụ'.")
 
             st.download_button(
                 label=f"📥 TẢI FILE: {new_filename}",
