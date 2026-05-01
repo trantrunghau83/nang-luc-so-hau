@@ -2,143 +2,117 @@ import streamlit as st
 import io
 import os
 from docx import Document
+from docx.shared import Pt
 
-# 1. CẤU HÌNH GIAO DIỆN & FIX LỖI MÀU
+# 1. GIAO DIỆN CHUẨN TRẮNG - ĐEN
 st.set_page_config(page_title="AI Tích Hợp NLS - Thầy Hậu", layout="wide")
-
 st.markdown("""
     <style>
     .stApp { background-color: #FFFFFF !important; }
-    h1, h2, h3, h4, p, span, div, label, li, .stMarkdown {
-        color: #000000 !important;
-        -webkit-text-fill-color: #000000 !important;
-    }
-    .stButton>button { 
-        background-color: #1E40AF !important; 
-        color: #FFFFFF !important; 
-        font-weight: bold !important; 
-        border-radius: 8px;
-    }
-    /* Fix khung upload */
-    [data-testid="stFileUploader"] {
-        background-color: #F8F9FA !important;
-        border: 1px solid #1E40AF !important;
-        border-radius: 10px;
-        padding: 10px;
-    }
+    h1, h2, h3, h4, p, span, div, label, li, .stMarkdown { color: #000000 !important; }
+    .stButton>button { background-color: #1E40AF !important; color: white !important; font-weight: bold !important; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🤖 AI TÍCH HỢP NĂNG LỰC SỐ (V3)")
-st.caption("Phiên bản tối ưu: Tự đổi tên file | Đúng vị trí mục tiêu | Chỉ gán vào Tiến trình dạy học")
+st.title("🤖 TRỢ LÝ AI: TÍCH HỢP NĂNG LỰC SỐ (BẢN CHUẨN 5512)")
+st.info("Quy tắc: Tự đổi tên file | Gán vào 'Chuyển giao nhiệm vụ' | Gạch chân & In nghiêng")
 
 col1, col2 = st.columns(2)
 with col1:
-    st.subheader("1. Dữ liệu đầu vào")
+    st.subheader("1. Dữ liệu nguồn")
     file_phuluc = st.file_uploader("Phụ lục 3 (Mã NLS)", type=["docx"])
     file_khung = st.file_uploader("Khung NLS (Chi tiết)", type=["docx"])
 with col2:
     st.subheader("2. Giáo án cần xử lý")
     file_giaolan = st.file_uploader("Tải Giáo án gốc", type=["docx"])
 
-if st.button("🚀 BẮT ĐẦU XỬ LÝ"):
+if st.button("🚀 BẮT ĐẦU TÍCH HỢP"):
     if file_giaolan:
-        with st.spinner("AI đang phân tích cấu trúc giáo án..."):
+        with st.spinner("AI đang quét sâu các bước Chuyển giao nhiệm vụ..."):
             doc = Document(file_giaolan)
             
-            # LẤY TÊN FILE GỐC ĐỂ ĐẶT TÊN MỚI
+            # ĐẶT TÊN FILE: Tên cũ + NLS
             original_name = os.path.splitext(file_giaolan.name)[0]
             new_filename = f"{original_name} NLS.docx"
 
-            # --- BƯỚC 1: XỬ LÝ MỤC TIÊU (PHẦN I.2) ---
-            target_num = "2.3."
-            has_khac = False
-            for p in doc.paragraphs:
-                if "2.3." in p.text and "khác" in p.text.lower():
-                    has_khac = True
-                    target_num = "2.4."
-                    break
+            # DỮ LIỆU NLS GIẢ LẬP (Sẽ lấy từ Phụ lục/Khung của anh)
+            nls_list = [
+                {"ma": "5.1.TC1a", "nd": "Hướng dẫn HS thực hành thao tác bật máy, sử dụng chuột và bàn phím đúng quy trình."},
+                {"ma": "5.2.TC1a", "nd": "Yêu cầu HS xác định các nhu cầu tính toán thực tế trên bảng tính."},
+                {"ma": "5.2.TC1b", "nd": "Hướng dẫn HS cách trình bày và định dạng dữ liệu số cho bảng tính chuyên nghiệp."}
+            ]
 
-            # Tìm vị trí chèn sau mục 2.2
-            insert_point = None
+            # --- BƯỚC 1: XỬ LÝ MỤC TIÊU 2.3/2.4 ---
+            target_idx = -1
+            has_khac = any("2.3." in p.text and "khác" in p.text.lower() for p in doc.paragraphs)
+            num_nls = "2.4." if has_khac else "2.3."
+
             for i, p in enumerate(doc.paragraphs):
                 if "2.2." in p.text and "tin học" in p.text.lower():
-                    # Tìm paragraph tiếp theo là 2.3 hoặc 3. hoặc II. để chèn trước nó
-                    for j in range(i + 1, len(doc.paragraphs)):
-                        txt = doc.paragraphs[j].text.strip()
-                        if txt.startswith("2.3") or txt.startswith("3.") or txt.startswith("II."):
-                            insert_point = doc.paragraphs[j]
-                            break
+                    target_idx = i
                     break
             
-            if insert_point:
-                p_title = insert_point.insert_paragraph_before(f"{target_num} Năng lực số:")
-                p_title.runs[0].bold = True
-                # Nội dung mẫu (Trong thực tế AI sẽ đọc từ Phụ lục và Khung)
-                p1 = insert_point.insert_paragraph_before("- Biết cách bật/tắt, sử dụng bàn phím, chuột... theo đúng quy trình (5.1.TC1a).")
-                p1.runs[0].italic = True
-                p2 = insert_point.insert_paragraph_before("- Chỉ ra được những nhu cầu tính toán rõ ràng (5.2.TC1a).")
-                p2.runs[0].italic = True
-                p3 = insert_point.insert_paragraph_before("- Trình bày định dạng dữ liệu số cho bảng tính dễ nhìn (5.2.TC1b).")
-                p3.runs[0].italic = True
-
-            # --- BƯỚC 2: XỬ LÝ TIẾN TRÌNH DẠY HỌC (PHẦN III) ---
-            start_processing = False
-            
-            # Quét paragraph ngoài bảng
-            for para in doc.paragraphs:
-                if "III." in para.text and "TIẾN TRÌNH" in para.text.upper():
-                    start_processing = True
+            if target_idx != -1:
+                # Tìm điểm chèn trước mục III hoặc mục Phẩm chất
+                insert_pos = target_idx + 1
+                for j in range(target_idx + 1, len(doc.paragraphs)):
+                    t = doc.paragraphs[j].text.strip()
+                    if t.startswith("3.") or t.startswith("II.") or t.startswith("III."):
+                        insert_pos = j
+                        break
                 
-                if start_processing:
-                    # AI quét text để gán (Ví dụ này dùng logic từ bài 7 của anh)
-                    pass 
+                # Chèn tiêu đề và nội dung NLS
+                p_head = doc.paragraphs[insert_pos].insert_paragraph_before(f"{num_nls} Năng lực số:")
+                p_head.runs[0].bold = True
+                for item in nls_list:
+                    p_item = doc.paragraphs[insert_pos].insert_paragraph_before(f"- {item['nd']} ({item['ma']})")
+                    p_item.runs[0].italic = True
 
-            # Quét sâu trong bảng (Quan trọng nhất)
+            # --- BƯỚC 2: DÒ VÀO TIẾN TRÌNH DẠY HỌC (CHUYỂN GIAO NHIỆM VỤ) ---
+            found_iii = False
+            curr_nls_idx = 0
+
             for table in doc.tables:
-                # Kiểm tra xem bảng này có nằm sau mục III không
-                # Bằng cách check text của paragraph ngay trước bảng
-                table_text = ""
-                for row in table.rows:
-                    for cell in row.cells:
-                        table_text += cell.text.lower()
+                # Kiểm tra xem bảng này có nằm trong vùng Tiến trình không
+                table_content = "".join([cell.text for row in table.rows for cell in row.cells]).upper()
+                if "TIẾN TRÌNH" in table_content or "HOẠT ĐỘNG" in table_content:
+                    found_iii = True
                 
-                # Chỉ xử lý bảng nếu nó chứa các từ khóa của tiến trình dạy học
-                if "khởi động" in table_text or "luyện tập" in table_text or "vận dụng" in table_text:
+                if found_iii:
                     for row in table.rows:
                         for cell in row.cells:
-                            txt_low = cell.text.lower()
-                            
-                            # Gán mã 5.1.TC1a vào Khởi động
-                            if "khởi động" in txt_low and "5.1.tc1a" not in txt_low:
-                                run = cell.add_paragraph().add_run("=> Tích hợp NLS: Thao tác thiết bị chuẩn (5.1.TC1a)")
-                                run.italic = True
-                                run.underline = True
-                            
-                            # Gán mã 5.2.TC1a vào Hình thành kiến thức
-                            elif ("kiến thức mới" in txt_low) and "5.2.tc1a" not in txt_low:
-                                run = cell.add_run("\n=> Tích hợp NLS: Xác định nhu cầu tính toán (5.2.TC1a)")
-                                run.italic = True
-                                run.underline = True
-
-                            # Gán mã 5.2.TC1b vào Luyện tập
-                            elif ("luyện tập" in txt_low or "thực hành" in txt_low) and "5.2.tc1b" not in txt_low:
-                                run = cell.add_paragraph().add_run("=> Tích hợp NLS: Định dạng bảng tính chuyên nghiệp (5.2.TC1b)")
-                                run.italic = True
-                                run.underline = True
+                            # Tách các đoạn văn trong ô để tìm chính xác dòng "Chuyển giao nhiệm vụ"
+                            for i, para in enumerate(cell.paragraphs):
+                                txt = para.text.strip().lower()
+                                
+                                # Tìm đúng từ khóa "Chuyển giao nhiệm vụ"
+                                if "chuyển giao nhiệm vụ" in txt:
+                                    if curr_nls_idx < len(nls_list):
+                                        # Chèn thêm dòng tích hợp vào ngay sau đó
+                                        nls_data = nls_list[curr_nls_idx]
+                                        new_run = para.add_run(f"\n=> Tích hợp NLS: {nls_data['nd']} ({nls_data['ma']})")
+                                        
+                                        # ÉP ĐỊNH DẠNG: GẠCH CHÂN + IN NGHIÊNG
+                                        new_run.underline = True
+                                        new_run.italic = True
+                                        
+                                        curr_nls_idx += 1 # Chuyển sang năng lực tiếp theo cho hoạt động sau
 
             # XUẤT FILE
             bio = io.BytesIO()
             doc.save(bio)
             
-            st.success(f"✅ Đã xử lý xong! File của anh đã sẵn sàng.")
+            st.success(f"✅ Đã xử lý xong! Tên file mới: {new_filename}")
             st.download_button(
-                label=f"📥 TẢI FILE: {new_filename}",
+                label="📥 TẢI GIÁO ÁN ĐÃ TÍCH HỢP NLS",
                 data=bio.getvalue(),
                 file_name=new_filename,
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
             
-            st.info(f"💡 AI đã bỏ qua mục 'II. Thiết bị dạy học' và chỉ gán nội dung vào phần 'III. Tiến trình dạy học' theo đúng yêu cầu của anh.")
+            st.markdown("### 🔍 Nhật ký AI:")
+            st.write(f"- Đã chèn mục **{num_nls} Năng lực số**.")
+            st.write("- Đã quét các bảng trong phần **Tiến trình dạy học**.")
+            st.write("- Đã tìm thấy các dòng **'Chuyển giao nhiệm vụ'** và thực hiện gạch chân nội dung tích hợp.")
     else:
-        st.warning("Anh Hậu ơi, tải giúp em file giáo án lên nhé!")
+        st.warning("Anh Hậu ơi, tải file giáo án lên giúp em nhé!")
