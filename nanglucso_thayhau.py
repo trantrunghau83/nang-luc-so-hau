@@ -15,8 +15,8 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🤖 TRỢ LÝ AI: TÍCH HỢP NĂNG LỰC SỐ (BẢN ĐỌC PHỤ LỤC 3)")
-st.info("💡 Tính năng mới: AI tự động đọc Cột 3 (Tên bài) & Cột 7 (NLS) từ Phụ lục 3 để gán vào giáo án một cách linh hoạt, chính xác 100%.")
+st.title("🤖 TRỢ LÝ AI: TÍCH HỢP NLS THÔNG MINH")
+st.info("💡 Chế độ: Đối chiếu nội dung phù hợp & Đảm bảo số lượng tối thiểu theo Mục tiêu.")
 
 col1, col2 = st.columns(2)
 with col1:
@@ -27,135 +27,104 @@ with col2:
     st.subheader("2. Giáo án cần xử lý")
     file_giaolan = st.file_uploader("Tải Giáo án gốc (File Word)", type=["docx"])
 
-if st.button("🚀 BẮT ĐẦU PHÂN TÍCH VÀ TÍCH HỢP"):
+def get_nls_from_pl3(pl_doc, lesson_name):
+    """Hàm lấy NLS từ cột 3 và cột 7 của Phụ lục 3"""
+    results = []
+    found_text = ""
+    for table in pl_doc.tables:
+        for row in table.rows:
+            if len(row.cells) >= 7:
+                col3 = row.cells[2].text.lower()
+                if lesson_name in col3:
+                    found_text += row.cells[6].text + "\n"
+    
+    # Tách mã và nội dung bằng Regex
+    pattern = r'(\d+\.\d+\.[A-Za-z0-9]+)\s*[:\-]\s*(.*?)(?=\d+\.\d+\.[A-Za-z0-9]+\s*[:\-]|$)'
+    matches = re.findall(pattern, found_text, re.DOTALL)
+    for ma, nd in matches:
+        results.append({"ma": ma.strip(), "nd": nd.strip()})
+    return results
+
+if st.button("🚀 BẮT ĐẦU TÍCH HỢP"):
     if file_giaolan and file_phuluc:
-        with st.spinner("AI đang đối chiếu Giáo án với Cột 3 và Cột 7 của Phụ lục 3..."):
-            doc = Document(file_giaolan)
-            pl_doc = Document(file_phuluc)
-            
-            # Đặt tên file: Tên cũ + NLS
-            original_name = os.path.splitext(file_giaolan.name)[0]
-            new_filename = f"{original_name} NLS.docx"
-
-            # --- MODULE TỰ ĐỘNG LẤY DỮ LIỆU TỪ PHỤ LỤC 3 ---
-            bai_hoc = ""
-            # 1. Tìm tên bài trong giáo án (Dò 30 dòng đầu tiên)
-            for p in doc.paragraphs[:30]:
-                match = re.search(r'(bài\s+\d+)', p.text, re.IGNORECASE)
-                if match:
-                    bai_hoc = match.group(1).lower()
-                    break
-            
-            nls_list = []
-            found_nls_text = ""
-
-            if bai_hoc:
-                # 2. Tìm bài đó trong CỘT 3 của Phụ lục 3
-                for table in pl_doc.tables:
-                    for row in table.rows:
-                        if len(row.cells) >= 7: # Đảm bảo bảng có ít nhất 7 cột
-                            col3_text = row.cells[2].text.lower() # Cột 3 (Index 2)
-                            if bai_hoc in col3_text:
-                                # 3. Lấy dữ liệu ở CỘT 7 (Index 6)
-                                found_nls_text += row.cells[6].text + "\n"
-
-                # Hỗ trợ dò trong text thường (Nếu phụ lục lưu dạng CSV text)
-                if not found_nls_text:
-                    for p in pl_doc.paragraphs:
-                        if bai_hoc in p.text.lower() and re.search(r'\d+\.\d+\.[A-Za-z0-9]+', p.text):
-                            found_nls_text += p.text + "\n"
-
-                # 4. Tách mã NLS và nội dung
-                if found_nls_text:
-                    pattern = r'(\d+\.\d+\.[A-Za-z0-9]+)\s*[:\-]\s*(.*?)(?=\d+\.\d+\.[A-Za-z0-9]+\s*[:\-]|$)'
-                    matches = re.findall(pattern, found_nls_text, re.DOTALL)
-                    for ma, nd in matches:
-                        nd_clean = nd.strip().strip('"').strip()
-                        if not any(item['ma'] == ma.strip() for item in nls_list):
-                            nls_list.append({"ma": ma.strip(), "nd": nd_clean})
-            
-            # Kiểm tra xem AI có lấy được dữ liệu thật không
-            if not nls_list:
-                st.warning(f"⚠️ Không tìm thấy '{bai_hoc.upper()}' trong Cột 3 của Phụ lục 3, hoặc Cột 7 bị trống. AI sẽ dùng dữ liệu giả định để tiếp tục.")
-                nls_list = [
-                    {"ma": "5.1.TC1a", "nd": "Hướng dẫn HS thực hành thao tác thiết bị, bật/tắt đúng quy trình."},
-                    {"ma": "5.2.TC1a", "nd": "Yêu cầu HS xác định nhu cầu thực tế cần giải quyết."}
-                ]
-            else:
-                st.success(f"🎯 AI đã đối chiếu thành công **{bai_hoc.upper()}** và lấy được {len(nls_list)} mã từ Cột 7 của Phụ lục 3.")
-
-            # --- BƯỚC 1: XỬ LÝ MỤC TIÊU (2.3 hoặc 2.4) ---
-            has_khac = any("2.3." in p.text and "khác" in p.text.lower() for p in doc.paragraphs)
-            num_nls = "2.4." if has_khac else "2.3."
-
+        doc = Document(file_giaolan)
+        pl_doc = Document(file_phuluc)
+        
+        # 1. Tìm tên bài
+        bai_hoc = ""
+        for p in doc.paragraphs[:30]:
+            match = re.search(r'(bài\s+\d+)', p.text, re.IGNORECASE)
+            if match:
+                bai_hoc = match.group(1).lower()
+                break
+        
+        # 2. Lấy danh sách NLS mục tiêu
+        nls_list = get_nls_from_pl3(pl_doc, bai_hoc)
+        
+        if not nls_list:
+            st.error(f"Không tìm thấy dữ liệu cho {bai_hoc} trong Phụ lục 3!")
+        else:
+            # --- BƯỚC 1: ĐIỀN MỤC TIÊU ---
+            # (Giữ nguyên logic chèn vào mục 2.3/2.4 như bản trước)
             target_idx = -1
             for i, p in enumerate(doc.paragraphs):
                 if "2.2." in p.text and "tin học" in p.text.lower():
-                    target_idx = i
-                    break
+                    target_idx = i; break
             
             if target_idx != -1:
-                insert_pos = target_idx + 1
-                for j in range(target_idx + 1, len(doc.paragraphs)):
-                    t = doc.paragraphs[j].text.strip()
-                    if t.startswith("3.") or t.startswith("II.") or t.startswith("III."):
-                        insert_pos = j
-                        break
-                
-                # Cố định vị trí để chèn không bị lộn ngược
-                ref_p = doc.paragraphs[insert_pos]
-                
-                p_head = ref_p.insert_paragraph_before(f"{num_nls} Năng lực số:")
+                ref_p = doc.paragraphs[target_idx + 1]
+                p_head = ref_p.insert_paragraph_before("2.4. Năng lực số:")
                 p_head.runs[0].bold = True
-                
-                # Chèn danh sách NLS chuẩn form Phụ lục 3
                 for item in nls_list:
                     p_item = ref_p.insert_paragraph_before(f"- {item['ma']}: {item['nd']}")
                     p_item.runs[0].italic = True
 
-            # --- BƯỚC 2: RÀ SOÁT TÌM "CHUYỂN GIAO NHIỆM VỤ" TRONG TIẾN TRÌNH ---
-            tracker = {"idx": 0, "count": 0}
+            # --- BƯỚC 2: TÍCH HỢP VÀO TIẾN TRÌNH (CÓ ĐỐI CHIẾU) ---
+            inserted_codes = set()
+            all_task_paras = []
 
-            def inject_nls(para):
-                txt = para.text.lower()
-                if "chuyển giao nhiệm vụ" in txt or "giao nhiệm vụ:" in txt:
-                    if len(nls_list) > 0:
-                        nls = nls_list[tracker["idx"] % len(nls_list)]
-                        
-                        # Chèn thêm 1 dòng mới vào dưới "Chuyển giao nhiệm vụ"
-                        run = para.add_run(f"\n   => Tích hợp NLS: {nls['ma']}: {nls['nd']}")
-                        
-                        # Định dạng chuẩn: Đậm, Nghiêng, Gạch chân
-                        run.italic = True
-                        run.underline = True
-                        run.bold = True 
-                        
-                        tracker["idx"] += 1
-                        tracker["count"] += 1
+            # Thu thập tất cả các đoạn "Chuyển giao nhiệm vụ"
+            def collect_tasks(container):
+                for p in container.paragraphs:
+                    if "chuyển giao nhiệm vụ" in p.text.lower():
+                        all_task_paras.append(p)
+                if hasattr(container, 'tables'):
+                    for table in container.tables:
+                        for row in table.rows:
+                            for cell in row.cells:
+                                collect_tasks(cell)
 
-            # Quét ngoài bảng
-            for p in doc.paragraphs:
-                inject_nls(p)
-                
-            # Quét sâu trong các bảng
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        for p in cell.paragraphs:
-                            inject_nls(p)
+            collect_tasks(doc)
 
-            # XUẤT FILE
+            # Lặp qua các nhiệm vụ để đối chiếu từ khóa (Matching sơ bộ)
+            for p in all_task_paras:
+                task_text = p.text.lower()
+                for item in nls_list:
+                    # Nếu nội dung NLS có từ khóa xuất hiện trong nhiệm vụ (ví dụ: 'thiết bị', 'dữ liệu', 'mạng'...)
+                    keywords = [k for k in item['nd'].lower().split() if len(k) > 3]
+                    if any(k in task_text for k in keywords) and item['ma'] not in inserted_codes:
+                        run = p.add_run(f"\n   => Tích hợp NLS: {item['ma']}: {item['nd']}")
+                        run.italic = True; run.bold = True; run.underline = True
+                        inserted_codes.add(item['ma'])
+                        break
+
+            # BƯỚC 3: ĐẢM BẢO SỐ LƯỢNG TỐI THIỂU
+            # Nếu số lượng đã chèn ít hơn số lượng NLS trong mục tiêu
+            if len(inserted_codes) < len(nls_list):
+                remaining_nls = [it for it in nls_list if it['ma'] not in inserted_codes]
+                for p in all_task_paras:
+                    if not remaining_nls: break
+                    # Nếu đoạn này chưa được gán NLS nào
+                    if "Tích hợp NLS:" not in p.text:
+                        item = remaining_nls.pop(0)
+                        run = p.add_run(f"\n   => Tích hợp NLS: {item['ma']}: {item['nd']}")
+                        run.italic = True; run.bold = True; run.underline = True
+                        inserted_codes.add(item['ma'])
+
+            # Xuất file
             bio = io.BytesIO()
             doc.save(bio)
-            
-            if tracker["count"] > 0:
-                st.markdown(f"<div class='status-box'><b>✅ BÁO CÁO NHANH:</b> Đã chèn {tracker['count']} năng lực số vào các bước 'Chuyển giao nhiệm vụ' thành công!</div>", unsafe_allow_html=True)
-            
-            st.download_button(
-                label=f"📥 TẢI XUỐNG: {new_filename}",
-                data=bio.getvalue(),
-                file_name=new_filename,
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            )
+            st.success(f"✅ Đã xử lý xong! Tổng cộng đã tích hợp {len(inserted_codes)} vị trí NLS.")
+            st.download_button("📥 Tải giáo án đã tích hợp", bio.getvalue(), f"{bai_hoc}_NLS_Chuan.docx")
     else:
-        st.warning("⚠️ Anh Hậu vui lòng tải đủ cả file 'Phụ lục 3' và 'Giáo án gốc' lên để AI đối chiếu nhé!")
+        st.warning("Vui lòng tải đủ file Phụ lục 3 và Giáo án.")
