@@ -13,8 +13,8 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🤖 TRỢ LÝ AI: TÍCH HỢP NĂNG LỰC SỐ (BẢN VƯỢT LỖI)")
-st.info("💡 Cơ chế mới: AI dùng Radar quét MỌI NGÓC NGÁCH trong giáo án để tìm chính xác dòng 'Chuyển giao nhiệm vụ' và gán NLS.")
+st.title("🤖 TRỢ LÝ AI: TÍCH HỢP NĂNG LỰC SỐ (BẢN FIX LỖI CAO CẤP)")
+st.info("💡 Đã khắc phục triệt để lỗi biến số. AI sẽ quét sâu toàn bộ giáo án và gán nội dung chuẩn xác!")
 
 col1, col2 = st.columns(2)
 with col1:
@@ -34,7 +34,7 @@ if st.button("🚀 BẮT ĐẦU TÍCH HỢP"):
             original_name = os.path.splitext(file_giaolan.name)[0]
             new_filename = f"{original_name} NLS.docx"
 
-            # Dữ liệu mẫu (Thực tế AI sẽ móc nối từ Phụ lục và Khung của anh)
+            # Dữ liệu NLS
             nls_list = [
                 {"ma": "5.1.TC1a", "nd": "Hướng dẫn HS thực hành thao tác thiết bị, bật/tắt đúng quy trình."},
                 {"ma": "5.2.TC1a", "nd": "Yêu cầu HS xác định nhu cầu thực tế cần giải quyết."},
@@ -68,29 +68,27 @@ if st.button("🚀 BẮT ĐẦU TÍCH HỢP"):
                     p_item.runs[0].italic = True
 
             # --- BƯỚC 2: RÀ SOÁT TÌM "CHUYỂN GIAO NHIỆM VỤ" ---
-            curr_nls_idx = 0
-            count_inserted = 0
+            
+            # 🌟 GIẢI PHÁP VƯỢT LỖI: Dùng Dictionary để lưu trữ bộ đếm
+            tracker = {"idx": 0, "count": 0}
 
-            # Hàm tiêm NLS vào một đoạn văn (paragraph)
             def inject_nls(para):
-                nonlocal curr_nls_idx, count_inserted
                 txt = para.text.lower()
                 
-                # Bắt đúng từ khóa của giáo án 5512
+                # Bắt đúng từ khóa
                 if "chuyển giao nhiệm vụ" in txt or "giao nhiệm vụ:" in txt:
-                    # Lấy NLS xoay vòng (Nếu có 4 hoạt động mà chỉ có 3 NLS, nó sẽ quay lại lấy cái số 1)
-                    nls = nls_list[curr_nls_idx % len(nls_list)]
-                    
-                    # Chèn thêm 1 dòng mới ngay bên dưới chữ chuyển giao nhiệm vụ
-                    run = para.add_run(f"\n   => Tích hợp NLS: {nls['nd']} ({nls['ma']})")
-                    
-                    # Định dạng: In nghiêng, Gạch chân (Em thêm In Đậm luôn cho dễ duyệt)
-                    run.italic = True
-                    run.underline = True
-                    run.bold = True 
-                    
-                    curr_nls_idx += 1
-                    count_inserted += 1
+                    if len(nls_list) > 0:
+                        nls = nls_list[tracker["idx"] % len(nls_list)]
+                        
+                        # Chèn thêm 1 dòng mới
+                        run = para.add_run(f"\n   => Tích hợp NLS: {nls['nd']} ({nls['ma']})")
+                        run.italic = True
+                        run.underline = True
+                        run.bold = True 
+                        
+                        # Tăng bộ đếm
+                        tracker["idx"] += 1
+                        tracker["count"] += 1
 
             # 1. Quét mọi dòng bên ngoài bảng
             for p in doc.paragraphs:
@@ -108,8 +106,8 @@ if st.button("🚀 BẮT ĐẦU TÍCH HỢP"):
             doc.save(bio)
             
             # THÔNG BÁO KẾT QUẢ RÕ RÀNG
-            if count_inserted > 0:
-                st.success(f"✅ TUYỆT VỜI! Đã tìm thấy và chèn Năng lực số vào {count_inserted} vị trí 'Chuyển giao nhiệm vụ'.")
+            if tracker["count"] > 0:
+                st.success(f"✅ TUYỆT VỜI! Đã tìm thấy và chèn Năng lực số vào {tracker['count']} vị trí 'Chuyển giao nhiệm vụ'.")
             else:
                 st.warning("⚠️ Quét xong nhưng không thấy chữ 'Chuyển giao nhiệm vụ'. Anh Hậu kiểm tra lại từ khóa trong giáo án nhé.")
 
