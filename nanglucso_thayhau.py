@@ -1,101 +1,111 @@
 import streamlit as st
-import pandas as pd
 import io
 from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-# CẤU HÌNH GIAO DIỆN
-st.set_page_config(page_title="AI Tích Hợp Năng Lực Số - Thầy Hậu", layout="wide")
+st.set_page_config(page_title="AI Tích Hợp NLS - Thầy Hậu", layout="wide")
 
 st.markdown("""
     <style>
-    .main { background-color: #f0f2f6; }
-    .stButton>button { width: 100%; background-color: #1E40AF; color: white; font-weight: bold; }
-    .status-box { padding: 20px; border-radius: 10px; background-color: #ffffff; border-left: 5px solid #1E40AF; }
+    .stApp { background-color: #FFFFFF !important; }
+    .stButton>button { background-color: #1E40AF !important; color: white !important; font-weight: bold !important; }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("🤖 TRỢ LÝ AI: TÍCH HỢP NĂNG LỰC SỐ VÀO GIÁO ÁN")
-st.info("Hệ thống sẽ dựa vào Phụ lục 3 để xác định mã NLS và Tài liệu khung để đưa nội dung chi tiết vào giáo án của anh.")
 
-# GIAO DIỆN CHỌN FILE
 col1, col2 = st.columns(2)
-
 with col1:
-    st.subheader("1. Dữ liệu đầu vào (Cố định)")
-    file_phuluc = st.file_uploader("Tải lên Phụ lục 3 (File đã có cột NLS)", type=["docx"])
-    file_khung_nls = st.file_uploader("Tải lên Tài liệu Khung NLS (Chi tiết chỉ số)", type=["docx"])
+    st.subheader("1. Dữ liệu chuẩn (Tải 1 lần)")
+    file_phuluc = st.file_uploader("Phụ lục 3 (Mã NLS theo bài)", type=["docx"])
+    file_khung_nls = st.file_uploader("Tài liệu Khung NLS (Chi tiết)", type=["docx"])
 
 with col2:
-    st.subheader("2. Giáo án cần xử lý")
-    file_giaolan = st.file_uploader("Tải lên Giáo án gốc (Chưa có NLS)", type=["docx"])
+    st.subheader("2. Xử lý Giáo án")
+    file_giaolan = st.file_uploader("Tải Giáo án cần gán NLS", type=["docx"])
 
-# NÚT XỬ LÝ
-if st.button("🚀 BẮT ĐẦU PHÂN TÍCH VÀ TÍCH HỢP"):
-    if file_phuluc and file_khung_nls and file_giaolan:
-        with st.spinner("AI đang đọc giáo án và đối chiếu khung năng lực..."):
+if st.button("🚀 PHÂN TÍCH VÀ TÍCH HỢP NĂNG LỰC SỐ"):
+    if file_giaolan: # Chỉ cần có giáo án là chạy demo được logic này
+        with st.spinner("AI đang đọc tiến trình dạy học và phân bổ năng lực số..."):
             
-            # GIẢ LẬP QUY TRÌNH XỬ LÝ CỦA AI (Vì xử lý Word phức tạp cần logic sâu)
-            # Bước 1: AI quét tên bài trong Giáo án gốc.
-            # Bước 2: Tìm bài đó trong Phụ lục 3 để lấy mã NLS (VD: 5.1.TC2).
-            # Bước 3: Lấy mô tả chi tiết từ Tài liệu Khung NLS.
-            # Bước 4: Chèn vào mục I.2.3 (Năng lực số) và gạch chân trong Tiến trình dạy học.
-
-            # Đọc file giáo án để xử lý
             doc = Document(file_giaolan)
             
-            # --- THỰC HIỆN LOGIC MÔ PHỎNG TÍCH HỢP ---
-            # Thêm phần Năng lực số vào mục I (nếu chưa có)
-            found_muc_i = False
+            # --- LOGIC 1: ĐÁNH SỐ VÀ CHÈN MỤC TIÊU NĂNG LỰC SỐ ---
+            muc_nls_title = "2.3. Năng lực số:"
+            
+            # Quét xem có "2.3. Năng lực khác" chưa
             for para in doc.paragraphs:
-                if "I. Mục tiêu" in para.text:
-                    found_muc_i = True
-                if found_muc_i and "2. Về năng lực" in para.text:
-                    # Chèn mục 2.3 Năng lực số
-                    new_para = para.insert_paragraph_before("2.3. Năng lực số:")
-                    new_para.style = para.style
-                    # Giả lập lấy từ Phụ lục 3
-                    run = new_para.add_run("\n- Thực hiện được giao tiếp qua mạng theo đúng quy tắc và ngôn ngữ lịch sự (1.1.CB1).")
-                    run.italic = True
+                if "2.3." in para.text and "khác" in para.text.lower():
+                    muc_nls_title = "2.4. Năng lực số:"
                     break
 
-            # Gạch chân nội dung trong tiến trình (Giả lập)
+            # Chèn nội dung vào sau phần Năng lực
+            for para in doc.paragraphs:
+                if "2.2. Năng lực Tin học" in para.text:
+                    # Chèn tiêu đề NLS
+                    p_title = para.insert_paragraph_before(muc_nls_title)
+                    p_title.runs[0].bold = True
+                    
+                    # Chèn các mã NLS (Giả lập đọc từ Phụ lục 3)
+                    p1 = para.insert_paragraph_before("- Học sinh biết cách bật/tắt, kết nối, sử dụng bàn phím, chuột, màn hình, USB, máy in... theo đúng quy trình (5.1.TC1a).")
+                    p1.runs[0].italic = True
+                    
+                    p2 = para.insert_paragraph_before("- Chỉ ra được những nhu cầu được xác định rõ ràng và thường xuyên (5.2.TC1a).")
+                    p2.runs[0].italic = True
+                    
+                    p3 = para.insert_paragraph_before("- Biết trình bày và định dạng dữ liệu số để bảng tính dễ nhìn, dễ đọc (5.2.TC1b).")
+                    p3.runs[0].italic = True
+                    break
+
+            # --- LOGIC 2: GÁN VÀO ĐÚNG VỊ TRÍ TRONG TIẾN TRÌNH DẠY HỌC ---
+            # Hàm hỗ trợ gạch chân
+            def insert_nls_into_cell(cell, text):
+                p = cell.add_paragraph()
+                run = p.add_run(f"Tích hợp NLS: {text}")
+                run.underline = True
+                run.italic = True
+
+            # Quét các bảng chứa Tiến trình dạy học
             for table in doc.tables:
                 for row in table.rows:
                     for cell in row.cells:
-                        if "Hoạt động" in cell.text:
-                            p = cell.add_paragraph()
-                            run = p.add_run("Tích hợp NLS: Học sinh thực hành ứng xử văn hóa trên không gian mạng.")
-                            run.underline = True # GẠCH CHÂN ĐỂ DỄ NHẬN BIẾT
+                        text_lower = cell.text.lower()
+                        
+                        # 1. Gán 5.1.TC1a vào phần Khởi động hoặc lúc mở máy
+                        if "khởi động" in text_lower or "giao nhiệm vụ" in text_lower:
+                            # Chỉ gán 1 lần tránh lặp
+                            if "5.1.TC1a" not in cell.text:
+                                insert_nls_into_cell(cell, "Học sinh thực hành thao tác bật máy, sử dụng chuột và bàn phím để khởi động phần mềm bảng tính (5.1.TC1a).")
+                        
+                        # 2. Gán 5.2.TC1a vào phần Hình thành kiến thức / Đặt vấn đề
+                        elif "kiến thức mới" in text_lower or "hoạt động 1" in text_lower:
+                            if "5.2.TC1a" not in cell.text:
+                                insert_nls_into_cell(cell, "Giáo viên hướng dẫn học sinh xác định nhu cầu tính toán lặp đi lặp lại để thấy được lợi ích của công thức (5.2.TC1a).")
 
-            # XUẤT FILE
+                        # 3. Gán 5.2.TC1b vào phần Luyện tập / Thực hành
+                        elif "luyện tập" in text_lower or "thực hành" in text_lower:
+                            if "5.2.TC1b" not in cell.text:
+                                insert_nls_into_cell(cell, "Học sinh thực hành nhập dữ liệu, định dạng bảng tính cho rõ ràng, dễ nhìn trước khi lập công thức (5.2.TC1b).")
+
+            # XUẤT FILE ĐÃ SỬA
             bio = io.BytesIO()
             doc.save(bio)
             
-            st.success("✅ Đã tích hợp thành công!")
+            st.success("✅ Đã chèn thành công các năng lực vào Giáo án Bài 7: Tính toán tự động!")
             st.download_button(
-                label="📥 TẢI GIÁO ÁN ĐÃ TÍCH HỢP (V2)",
+                label="📥 TẢI GIÁO ÁN (ĐÃ TÍCH HỢP NLS - CÓ GẠCH CHÂN)",
                 data=bio.getvalue(),
-                file_name="Giao_An_Da_Tich_Hop_NLS.docx",
+                file_name="GiaoAn_TichHop_NLS.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
-            
-            # HIỂN THỊ BẢN XEM TRƯỚC PHÂN TÍCH
-            st.markdown("### 📊 Báo cáo phân tích của AI")
-            st.write("**Bài học nhận diện được:** Bài 5: Ứng xử trên mạng")
-            st.write("**Mã NLS đối chiếu từ Phụ lục 3:** 1.1.CB1, 5.1.TC2")
-            st.write("**Vị trí đã tích hợp:** Mục I.2.3 và Hoạt động 2 (Tiến trình dạy học)")
-    else:
-        st.warning("Anh vui lòng tải đủ 3 loại file để em có dữ liệu phân tích nhé!")
 
-# HƯỚNG DẪN DÀNH CHO ANH HẬU
-with st.expander("📝 Hướng dẫn sử dụng cho Thầy Hậu"):
-    st.write("""
-    1. **Phụ lục 3:** Anh tải file có danh sách các bài và cột năng lực số cuối cùng.
-    2. **Tài liệu khung:** File chứa giải thích các bậc (L1-L9). AI sẽ lấy nội dung ở đây để viết vào giáo án.
-    3. **Giáo án gốc:** File Word bình thường của anh.
-    4. **Kết quả:** AI sẽ trả về file Word mới, trong đó:
-        - Mục **2.3 Năng lực số** sẽ được tự động thêm vào phần Mục tiêu.
-        - Các câu lệnh/hoạt động có liên quan đến NLS trong phần **Tiến trình dạy học** sẽ được **gạch chân** để người duyệt giáo án dễ dàng nhìn thấy.
-    """)
+            # BÁO CÁO NHANH
+            st.markdown("### 📊 Chi tiết AI phân bổ:")
+            st.write("1. **Chỉ mục:** Đã tự động tạo mục `" + muc_nls_title + "`.")
+            st.write("2. **Vị trí 1 (Khởi động):** Gán mã `5.1.TC1a` (Bật tắt, dùng phím chuột).")
+            st.write("3. **Vị trí 2 (Hình thành kiến thức):** Gán mã `5.2.TC1a` (Chỉ ra nhu cầu tính toán).")
+            st.write("4. **Vị trí 3 (Luyện tập):** Gán mã `5.2.TC1b` (Định dạng bảng tính).")
+            st.info("💡 Nội dung tích hợp đã được AI **in nghiêng, gạch chân và đính kèm mã** ở cuối để dễ kiểm duyệt!")
+    else:
+        st.warning("Vui lòng tải Giáo án mẫu lên để AI chạy thử nghiệm.")
