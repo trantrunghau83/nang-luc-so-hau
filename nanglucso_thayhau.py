@@ -5,28 +5,26 @@ import re
 from docx import Document
 
 # --- CẤU HÌNH GIAO DIỆN ---
-st.set_page_config(page_title="AI Tích Hợp NLS Toàn Diện - Thầy Hậu", layout="wide")
+st.set_page_config(page_title="AI Tích Hợp NLS V3 - Thầy Hậu", layout="wide")
 st.markdown("""
     <style>
     .stApp { background-color: #FFFFFF !important; }
-    h1, h2, h3 { color: #1E40AF !important; }
-    .stButton>button { background-color: #1E40AF !important; color: white !important; width: 100%; border-radius: 10px; height: 50px; font-size: 18px;}
-    .status-card { padding: 20px; border-radius: 10px; background-color: #F1F5F9; border-left: 6px solid #1E40AF; margin-bottom: 20px; color: #1E293B;}
+    .stButton>button { background-color: #1E40AF !important; color: white !important; font-weight: bold; }
+    .status-box { padding: 15px; border-radius: 8px; border-left: 5px solid #1E40AF; background-color: #F8F9FA; margin-bottom: 20px;}
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🤖 AI TÍCH HỢP NLS: PHÂN BỔ DÀN TRẢI & TỐI ƯU CÔNG CỤ")
-st.info("💡 Hướng dẫn: AI sẽ tự động dàn trải NLS vào các nhiệm vụ và gợi ý công cụ số (Canva, Padlet, Excel...) dựa trên nội dung bài học.")
+st.title("🤖 AI TỔ CHỨC GIÁO ÁN NLS CHUẨN (V3)")
+st.info("💡 Vị trí: 2.4 Năng lực số đặt trước mục 3. Về phẩm chất. AI tự động dàn trải nội dung và gợi ý phần mềm.")
 
-# Thư viện công cụ số thông minh theo từng nhóm năng lực
-DIGITAL_TOOLS = {
-    "1.1": "Google Search, Wikipedia (để tìm kiếm dữ liệu)",
-    "2.5": "Padlet, Zalo Group, Google Classroom (để thảo luận nhóm)",
-    "3.1": "MS Excel, Google Sheets, Canva (để tạo nội dung số)",
-    "4.3": "Youtube, Quizizz (để học tập và giải trí an toàn)",
-    "5.1": "Sơ đồ tư duy MindMap, MS Word (để hệ thống hóa kiến thức)",
-    "5.2": "Phần mềm bảng tính, các công cụ đo lường trực tuyến",
-    "5.3": "Các phần mềm mô phỏng, công cụ bảo mật máy tính"
+# Thư viện công cụ số để giáo án sinh động
+TOOLS_DICT = {
+    "1.1": "Google Search, Wikipedia để tra cứu dữ liệu thực tế",
+    "2.5": "Padlet, Zalo Group hoặc Google Classroom để thảo luận và nộp sản phẩm",
+    "3.1": "Canva, MS Word hoặc PowerPoint để thiết kế nội dung số",
+    "4.3": "Xem video trên Youtube về kỹ năng an toàn mạng, chơi Quizizz để củng cố",
+    "5.1": "Sử dụng sơ đồ tư duy (MindMap) để hệ thống hóa kiến thức bài học",
+    "5.2": "Phần mềm bảng tính (MS Excel/Google Sheets) để xử lý dữ liệu tự động",
 }
 
 col1, col2 = st.columns(2)
@@ -36,21 +34,21 @@ with col2:
     file_giaolan = st.file_uploader("2. Tải Giáo án gốc", type=["docx"])
 
 def get_nls_from_pl3(pl_doc, lesson_name):
-    """Lấy dữ liệu NLS từ cột 3 và cột 7"""
-    nls_list = []
+    """Hàm lấy dữ liệu cột 7 so với tên bài ở cột 3"""
+    results = []
     for table in pl_doc.tables:
         for row in table.rows:
             if len(row.cells) >= 7:
-                c3 = row.cells[2].text.lower()
-                if lesson_name in c3:
-                    text = row.cells[6].text
-                    matches = re.findall(r'(\d+\.\d+\.[A-Za-z0-9]+)\s*[:\-]\s*(.*?)(?=\d+\.\d+\.[A-Za-z0-9]+\s*[:\-]|$)', text, re.DOTALL)
+                col3_text = row.cells[2].text.lower()
+                if lesson_name in col3_text:
+                    col7_text = row.cells[6].text
+                    matches = re.findall(r'(\d+\.\d+\.[A-Za-z0-9]+)\s*[:\-]\s*(.*?)(?=\d+\.\d+\.[A-Za-z0-9]+\s*[:\-]|$)', col7_text, re.DOTALL)
                     for ma, nd in matches:
-                        if ma.strip() not in [x['ma'] for x in nls_list]:
-                            nls_list.append({"ma": ma.strip(), "nd": nd.strip()})
-    return nls_list
+                        if ma.strip() not in [x['ma'] for x in results]:
+                            results.append({"ma": ma.strip(), "nd": nd.strip()})
+    return results
 
-if st.button("🚀 THỰC HIỆN TÍCH HỢP DÀN TRẢI"):
+if st.button("🚀 CẬP NHẬT GIÁO ÁN NGAY"):
     if file_giaolan and file_phuluc:
         doc = Document(file_giaolan)
         pl_doc = Document(file_phuluc)
@@ -58,83 +56,83 @@ if st.button("🚀 THỰC HIỆN TÍCH HỢP DÀN TRẢI"):
         # 1. Nhận diện bài học
         bai_hoc = ""
         for p in doc.paragraphs[:30]:
-            m = re.search(r'(bài\s+\d+)', p.text, re.IGNORECASE)
-            if m: bai_hoc = m.group(1).lower(); break
+            match = re.search(r'(bài\s+\d+)', p.text, re.IGNORECASE)
+            if match:
+                bai_hoc = match.group(1).lower()
+                break
         
-        nls_data = get_nls_from_pl3(pl_doc, bai_hoc)
+        nls_list = get_nls_from_pl3(pl_doc, bai_hoc)
         
-        if not nls_data:
-            st.error(f"Không tìm thấy bài '{bai_hoc}' trong Phụ lục 3. Vui lòng kiểm tra lại cột 3.")
+        if not nls_list:
+            st.error(f"⚠️ Không tìm thấy bài '{bai_hoc}' trong cột 3 của Phụ lục 3.")
         else:
-            # --- PHẦN 1: CHỈNH SỬA MỤC TIÊU 2.1 -> 2.4 ---
+            # --- PHẦN 1: CHÈN 2.4 VÀO TRƯỚC MỤC 3 ---
+            idx_3 = -1
             idx_22 = -1
-            idx_23 = -1
             for i, p in enumerate(doc.paragraphs):
-                if "2.2." in p.text: idx_22 = i
-                if "2.3." in p.text: idx_23 = i
+                txt = p.text.strip()
+                if "3." in txt and "về phẩm chất" in txt.lower(): idx_3 = i
+                if "2.2." in txt: idx_22 = i
             
-            # Nếu không có 2.3, tạo 2.3 sau 2.2
-            if idx_23 == -1 and idx_22 != -1:
-                ref_p = doc.paragraphs[idx_22 + 1]
-                p23 = ref_p.insert_paragraph_before("2.3. Năng lực khác:")
-                p23.runs[0].bold = True
-                idx_23 = idx_22 + 1
-            
-            # Chèn 2.4 sau 2.3
-            if idx_23 != -1:
-                # Tìm vị trí bắt đầu mục 3 hoặc phần II lớn để chèn vào cuối mục 2
-                insert_pos = idx_23 + 1
-                for k in range(idx_23 + 1, len(doc.paragraphs)):
-                    if doc.paragraphs[k].text.strip().startswith(("3.", "II.", "III.")):
-                        insert_pos = k; break
+            # Nếu không tìm thấy mục 3, chèn vào trước phần II. Thiết bị
+            if idx_3 == -1:
+                for i, p in enumerate(doc.paragraphs):
+                    if "II." in p.text: idx_3 = i; break
+
+            if idx_3 != -1:
+                ref_p = doc.paragraphs[idx_3]
                 
-                ref_p = doc.paragraphs[insert_pos]
+                # Kiểm tra/Chèn 2.3 nếu chưa có để đảm bảo thứ tự 2.1 -> 2.4
+                has_23 = any("2.3." in p.text for p in doc.paragraphs)
+                if not has_23 and idx_22 != -1:
+                    p23 = ref_p.insert_paragraph_before("2.3. Năng lực khác:")
+                    p23.runs[0].bold = True
+
+                # Chèn 2.4. Năng lực số
                 p24_head = ref_p.insert_paragraph_before("2.4. Năng lực số:")
                 p24_head.runs[0].bold = True
-                for item in nls_data:
+                for item in nls_list:
                     p_item = ref_p.insert_paragraph_before(f"- {item['ma']}: {item['nd']}")
                     p_item.runs[0].italic = True
+                # Chèn dòng trống để ngăn cách với mục 3
+                ref_p.insert_paragraph_before("")
 
-            # --- PHẦN 2: DÀN TRẢI VÀO TIẾN TRÌNH ---
-            all_task_paras = []
-            # Gom tất cả "Chuyển giao nhiệm vụ" hoặc "Câu hỏi"
-            for p in doc.paragraphs:
-                if any(x in p.text.lower() for x in ["chuyển giao nhiệm vụ", "câu hỏi", "nhiệm vụ 1", "nhiệm vụ 2"]):
-                    all_task_paras.append(p)
-            for t in doc.tables:
-                for r in t.rows:
-                    for c in r.cells:
-                        for p in c.paragraphs:
-                            if any(x in p.text.lower() for x in ["chuyển giao nhiệm vụ", "câu hỏi"]):
-                                all_task_paras.append(p)
+            # --- PHẦN 2: DÀN TRẢI SÁNG TẠO VÀO TIẾN TRÌNH ---
+            all_candidate_paras = []
+            def find_tasks(container):
+                for p in container.paragraphs:
+                    t = p.text.lower()
+                    # Tìm các câu hỏi (?) hoặc lệnh chuyển giao nhiệm vụ
+                    if "?" in t or "chuyển giao nhiệm vụ" in t or "câu hỏi:" in t:
+                        all_candidate_paras.append(p)
+                if hasattr(container, 'tables'):
+                    for table in container.tables:
+                        for row in table.rows:
+                            for cell in row.cells: find_tasks(cell)
 
-            if all_task_paras:
-                # Thuật toán dàn trải: Chia đều nls_data vào all_task_paras
-                num_tasks = len(all_task_paras)
-                num_nls = len(nls_data)
-                step = max(1, num_tasks // num_nls)
-                
-                for i in range(num_nls):
-                    target_idx = min(i * step, num_tasks - 1)
-                    para = all_task_paras[target_idx]
-                    nls = nls_data[i]
+            find_tasks(doc)
+
+            if all_candidate_paras:
+                # Dàn trải nls_list vào các vị trí đã tìm được
+                for i, item in enumerate(nls_list):
+                    # Chia đều vị trí dựa trên số lượng mã NLS
+                    target_idx = (i * len(all_candidate_paras)) // len(nls_list)
+                    target_p = all_candidate_paras[target_idx]
                     
                     # Lấy gợi ý công cụ
-                    prefix = nls['ma'][:3]
-                    tool = DIGITAL_TOOLS.get(prefix, "các ứng dụng học tập số phù hợp")
+                    prefix = item['ma'][:3]
+                    tool = TOOLS_DICT.get(prefix, "phần mềm học tập chuyên dụng")
                     
-                    # Biên soạn lại câu văn sinh động
-                    creative_msg = (f"\n   => Tích hợp NLS ({nls['ma']}): Thông qua nhiệm vụ/câu hỏi trên, "
-                                   f"HS rèn luyện kỹ năng {nls['nd']}. GV khuyến khích HS sử dụng {tool} "
-                                   f"để hoàn thành nội dung sinh động hơn.")
+                    # Biên soạn câu văn sáng tạo dựa trên câu hỏi của GV
+                    creative_note = f"\n   => Tích hợp NLS ({item['ma']}): Thông qua hoạt động trả lời/thảo luận trên, HS rèn luyện: {item['nd']}. GV hướng dẫn sử dụng {tool} để tăng tính sinh động."
                     
-                    run = para.add_run(creative_msg)
+                    run = target_p.add_run(creative_note)
                     run.bold = True; run.italic = True; run.underline = True
 
             # Xuất file
             bio = io.BytesIO()
             doc.save(bio)
-            st.markdown(f"<div class='status-card'>✅ <b>THÀNH CÔNG:</b> Đã chuẩn hóa mục tiêu 2.1-2.4 và dàn trải {len(nls_data)} năng lực số kèm gợi ý công cụ vào tiến trình dạy học.</div>", unsafe_allow_html=True)
-            st.download_button(f"📥 TẢI GIÁO ÁN {bai_hoc.upper()}", bio.getvalue(), f"Giao_an_NLS_Chuan_{bai_hoc}.docx")
+            st.markdown(f"<div class='status-box'>✅ <b>HOÀN THÀNH:</b> Đã đặt 2.4 trước mục 3 và dàn trải {len(nls_list)} vị trí tích hợp sáng tạo vào giáo án.</div>", unsafe_allow_html=True)
+            st.download_button(f"📥 Tải Giáo án {bai_hoc.upper()} chuẩn vị trí", bio.getvalue(), f"Giao_an_Chuan_V3_{bai_hoc}.docx")
     else:
-        st.warning("Vui lòng tải lên cả Phụ lục 3 và Giáo án gốc.")
+        st.warning("Vui lòng tải đủ 2 file để em xử lý ạ!")
